@@ -1,16 +1,23 @@
 //! Instruction types
 use solana_program::program_error::ProgramError;
-use std::convert::TryInto;
-use crate::error::TokenError;
 
-pub struct ProcessWhitelist ;
+use {borsh::{BorshDeserialize}};
+
+use crate::{
+    error::TokenError,
+    state::Price,
+};
+use std::convert::TryInto;
+
 pub struct ProcessUpdate {
     pub amount: u64
 
 }
 
 pub enum TokenInstruction {
-    ProcessWhitelist(ProcessWhitelist),
+    ProcessWhitelist{
+        creator: Price,
+    },
     ProcessUpdate(ProcessUpdate),
 }
 
@@ -20,7 +27,7 @@ impl TokenInstruction {
         let (&tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
         Ok(match tag {
             0 => {             
-                Self::ProcessWhitelist(ProcessWhitelist)
+                Self::ProcessWhitelist{creator:Price::try_from_slice(rest)?}
             }
             1 => {
                 let (amount, _rest) = rest.split_at(8);

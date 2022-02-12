@@ -5,9 +5,10 @@ use {borsh::{BorshDeserialize}};
 
 use crate::{
     error::TokenError,
-    state::Price,
+    state::CREATORS,
 };
 use std::convert::TryInto;
+
 
 pub struct ProcessUpdate {
     pub amount: u64
@@ -16,7 +17,7 @@ pub struct ProcessUpdate {
 
 pub enum TokenInstruction {
     ProcessWhitelist{
-        creator: Price,
+        nft_creator: CREATORS,
     },
     ProcessUpdate(ProcessUpdate),
 }
@@ -27,7 +28,7 @@ impl TokenInstruction {
         let (&tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
         Ok(match tag {
             0 => {             
-                Self::ProcessWhitelist{creator:Price::try_from_slice(rest)?}
+                Self::ProcessWhitelist{nft_creator:CREATORS::try_from_slice(rest)?}
             }
             1 => {
                 let (amount, _rest) = rest.split_at(8);

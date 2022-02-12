@@ -5,12 +5,12 @@ use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
     borsh::try_from_slice_unchecked,}; 
-//deposit tokens
+//price state
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
 pub struct Price {
      
-    pub creator: Vec<CREATORS>,
+    pub creator: CREATORS,
     pub admin_account: Pubkey,
     pub update_time: u64,
     pub price:u64,
@@ -18,7 +18,7 @@ pub struct Price {
 #[repr(C)]
 #[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Clone)]
 pub struct CREATORS{
-    pub address: Pubkey,
+    pub address: Vec<Pubkey>,
 }
 impl Price {
     pub fn from_account(account:&AccountInfo)-> Result<Price, ProgramError> {

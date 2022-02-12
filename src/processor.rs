@@ -1,6 +1,6 @@
 //! Program state processor
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -14,7 +14,7 @@ use solana_program::{
 
 use crate::{
     instruction::{ProcessUpdate,TokenInstruction},
-    state::Price
+    state::{Price,CREATORS},
 };
 use std::{
     str::FromStr
@@ -22,7 +22,7 @@ use std::{
 pub struct Processor {}
 
 impl Processor {
-    pub fn process_whitelist(program_id: &Pubkey,accounts: &[AccountInfo],creator:Price) -> ProgramResult 
+    pub fn process_whitelist(program_id: &Pubkey,accounts: &[AccountInfo],creator:CREATORS) -> ProgramResult 
     {
         //executed once
         let account_info_iter = &mut accounts.iter();
@@ -34,20 +34,22 @@ impl Processor {
         if !admin_account.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
-        let admin_key="some string"; //always fixed
+        msg!("The instruction is signed");
+        let admin_key="BwN61k17qGbgXp5PrgyRn1p6nQLR9ZH5YtsA9rCiRQxt"; //always fixed
         let admin_key = Pubkey::from_str( admin_key ).unwrap();
-
+        
           //Was the transaction updated by admin account
         if *admin_account.key !=admin_key
         {
             return Err(ProgramError::MissingRequiredSignature);
         }
-
-
+        
+        msg!("The admin matches");
         let rent = Rent::get()?;
         let size: u64=std::mem::size_of::<Price>() as u64 + 180;
         let transfer_amount =  rent.minimum_balance (size as usize);
        //creating the data feed account
+       msg!("The feed account is being created...");
         invoke(
             &system_instruction::create_account(
                 admin_account.key,
@@ -62,13 +64,13 @@ impl Processor {
                 system_program.clone(),
             ],
         )?;
-        
+        msg!("The feed account is complete being created");
         let mut pda_start = Price::from_account(pda_data)?;
-        
-        pda_start.creator = creator.creator;
+        msg!("Data writing...");
+        pda_start.creator = creator;
         pda_start.admin_account=*admin_account.key;
         pda_start.serialize(&mut *pda_data.data.borrow_mut())?;
-        
+        msg!("Data writing complete");
         Ok(())
     }
     
@@ -92,20 +94,20 @@ impl Processor {
         {
             return Err(ProgramError::MissingRequiredSignature);
         }
-        let mut pda_update = Price::try_from_slice(&pda_data.data.borrow())?;
+        let mut pda_update = Price::from_account(pda_data)?;
         let mut k = 0; 
 
         //verifying the collection
-        for i in 0..pda_update.creator.len()
+        for i in 0..pda_update.creator.address.len()
         {
             let creator = next_account_info(account_info_iter)?;
-            if *creator.key == pda_update.creator[i].address
+            if *creator.key == pda_update.creator.address[i]
             {
                 k+=1;
             }
         }
         // if not verified return error
-        if k < pda_update.creator.len()
+        if k < pda_update.creator.address.len()
         {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -120,8 +122,7 @@ impl Processor {
         let now:u64 = Clock::get()?.unix_timestamp as u64;
         pda_update.update_time= now;
 
-     
-        pda_update.serialize(&mut &mut pda_data.data.borrow_mut()[..])?;
+        pda_update.serialize(&mut *pda_data.data.borrow_mut())?;
         Ok(())
 
     }
@@ -130,9 +131,9 @@ impl Processor {
     pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
         let instruction = TokenInstruction::unpack(input)?;
         match instruction {
-            TokenInstruction::ProcessWhitelist{creator} => {
+            TokenInstruction::ProcessWhitelist{nft_creator} => {
                 msg!("Instruction: Whitelisting Collection");
-                Self::process_whitelist(program_id, accounts,creator)
+                Self::process_whitelist(program_id, accounts,nft_creator)
             }
             TokenInstruction::ProcessUpdate(ProcessUpdate{ amount }) => {
                 msg!("Instruction: Updating Price");

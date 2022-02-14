@@ -1,11 +1,9 @@
 //! Instruction types
 use solana_program::program_error::ProgramError;
 
-use {borsh::{BorshDeserialize}};
 
 use crate::{
     error::TokenError,
-    state::CREATORS,
 };
 use std::convert::TryInto;
 
@@ -14,11 +12,13 @@ pub struct ProcessUpdate {
     pub amount: u64
 
 }
+pub struct ProcessCollector {
+    pub number: u64
+
+}
 
 pub enum TokenInstruction {
-    ProcessWhitelist{
-        nft_creator: CREATORS,
-    },
+    ProcessCollector(ProcessCollector),
     ProcessUpdate(ProcessUpdate),
 }
 
@@ -28,7 +28,12 @@ impl TokenInstruction {
         let (&tag, rest) = input.split_first().ok_or(InvalidInstruction)?;
         Ok(match tag {
             0 => {             
-                Self::ProcessWhitelist{nft_creator:CREATORS::try_from_slice(rest)?}
+                let (number, _rest) = rest.split_at(8);
+                let number = number
+                    .try_into()
+                    .map(u64::from_le_bytes)
+                    .or(Err(InvalidInstruction))?;                
+                Self::ProcessCollector(ProcessCollector{number})
             }
             1 => {
                 let (amount, _rest) = rest.split_at(8);
